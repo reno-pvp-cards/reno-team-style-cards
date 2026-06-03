@@ -66,7 +66,7 @@ const SS_HEIGHT = 180       // スクショエリア高さ（4:5・情報エリ�
 // ─── 陣営カラー（CCチームカードの ASTRA / UMBRA を踏襲）──────────
 //   ASTRA = 白基調 × 青文字 / UMBRA = 黒基調 × 赤文字
 const ASTRA_COLOR = '#1c7fc4'   // accent（青）
-const UMBRA_COLOR = '#e0473d'   // accent（赤）
+const UMBRA_COLOR = '#e5352a'   // accent（赤・公式UMBRAバー準拠の鮮やかな朱赤）
 
 // テーマキーは 'umbra'（ダーク相当）/ 'astra'（ライト相当）の2系統。
 //   ThemeToggle では UMBRA→ASTRA の順で並べる（ダーク/シンプルのボタン枠を踏襲）。
@@ -74,28 +74,29 @@ const THEME = {
   // ── UMBRA：黒基調 × 赤文字（旧 dark 相当）──
   umbra: {
     faction: 'UMBRA', factionJp: 'ウンブラ', light: false,
-    cardBg: '#160606', pageBg: '#0a0405',
-    label: 'rgba(255,120,110,0.42)', value: 'rgba(255,236,234,0.88)',
-    activeTag: UMBRA_COLOR, activeTagMainText: '#160606',
-    inactiveTagBg: 'rgba(255,255,255,0.05)', inactiveTagBorder: 'rgba(255,120,110,0.22)',
-    inactiveTagText: 'rgba(255,200,196,0.5)',
-    border: 'rgba(224,71,61,0.22)', sectionBg: 'rgba(224,71,61,0.06)',
-    inputBg: 'rgba(255,255,255,0.06)', inputBorder: 'rgba(224,71,61,0.28)',
-    inputText: 'rgba(255,236,234,0.9)', buttonBg: UMBRA_COLOR, buttonText: '#160606',
+    // 背景：公式バー準拠の深紅をより黒に寄せて引き締める
+    cardBg: '#080303', pageBg: '#030101',
+    label: 'rgba(255,110,100,0.5)', value: 'rgba(255,234,232,0.88)',
+    activeTag: UMBRA_COLOR, activeTagMainText: '#080303',
+    inactiveTagBg: 'rgba(255,255,255,0.05)', inactiveTagBorder: 'rgba(229,53,42,0.24)',
+    inactiveTagText: 'rgba(255,196,190,0.5)',
+    border: 'rgba(229,53,42,0.26)', sectionBg: 'rgba(229,53,42,0.07)',
+    inputBg: 'rgba(255,255,255,0.06)', inputBorder: 'rgba(229,53,42,0.3)',
+    inputText: 'rgba(255,234,232,0.9)', buttonBg: UMBRA_COLOR, buttonText: '#080303',
     accentColor: UMBRA_COLOR,
-    rankBadgeBg: 'rgba(12,3,3,0.78)',
-    playerNameColor: '#fdf2f0',
-    noteBg: 'rgba(224,71,61,0.05)', noteBorder: 'rgba(224,71,61,0.2)',
-    selectBg: 'rgba(255,255,255,0.06)', selectBorder: 'rgba(224,71,61,0.28)',
-    selectText: 'rgba(255,236,234,0.88)', selectHover: 'rgba(224,71,61,0.14)',
-    selectActive: 'rgba(224,71,61,0.24)', dropdownBg: '#1c0808',
-    dropdownBorder: 'rgba(224,71,61,0.32)', groupLabel: 'rgba(255,120,110,0.55)',
-    deleteBg: 'rgba(255,80,80,0.14)', deleteBorder: 'rgba(255,80,80,0.4)', deleteText: '#ff9090',
-    themeBtnActiveBg: 'rgba(224,71,61,0.22)', themeBtnInactiveBg: 'transparent',
-    themeBtnActiveText: '#ff7a6e', themeBtnInactiveText: 'rgba(255,255,255,0.35)',
-    themeBtnBorder: 'rgba(224,71,61,0.28)',
+    rankBadgeBg: 'rgba(8,2,2,0.8)',
+    playerNameColor: '#fef0ee',
+    noteBg: 'rgba(229,53,42,0.06)', noteBorder: 'rgba(229,53,42,0.22)',
+    selectBg: 'rgba(255,255,255,0.06)', selectBorder: 'rgba(229,53,42,0.3)',
+    selectText: 'rgba(255,234,232,0.88)', selectHover: 'rgba(229,53,42,0.15)',
+    selectActive: 'rgba(229,53,42,0.26)', dropdownBg: '#160606',
+    dropdownBorder: 'rgba(229,53,42,0.34)', groupLabel: 'rgba(255,110,100,0.58)',
+    deleteBg: 'rgba(255,70,70,0.14)', deleteBorder: 'rgba(255,70,70,0.42)', deleteText: '#ff8a82',
+    themeBtnActiveBg: 'rgba(229,53,42,0.24)', themeBtnInactiveBg: 'transparent',
+    themeBtnActiveText: '#ff6e64', themeBtnInactiveText: 'rgba(255,255,255,0.35)',
+    themeBtnBorder: 'rgba(229,53,42,0.3)',
     // ヘッダーの陣営ロゴ表記用
-    logoColor: UMBRA_COLOR, headerSub: 'rgba(255,120,110,0.6)',
+    logoColor: UMBRA_COLOR, headerSub: 'rgba(255,110,100,0.62)',
   },
   // ── ASTRA：白基調 × 青文字（旧 simple / light 相当）──
   astra: {
