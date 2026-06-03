@@ -1,4 +1,10 @@
-import React, { useState, useRef, useCallback } from 'react'
+import React, { useState, useRef, useCallback, useLayoutEffect } from 'react'
+
+// ─── X（ポスト）共有設定 ─────────────────────────────────
+//   投稿文に URL を含めたくなったら SHARE_URL に設定（空文字なら URL 行は出ない）
+const SHARE_URL  = ''                        // ← URLを入れたい場合のみ設定
+const SHARE_HASH = '#FF14 #CCキャラカード'    // ← ハッシュタグ
+const SHARE_NOUN = 'CCキャラカード'           // ← 「○○を作りました！」の○○
 
 const JOB_LIST = {
   タンク: ['ナイト', '戦士', '暗黒騎士', 'ガンブレイカー'],
@@ -46,6 +52,7 @@ const emptyPlayer = {
   firstName: '', lastName: '', nickname: '', server: '',
   mainJob: '', subJobs: [], highestRank: '', playstyle: [],
   team: '', screenshotDataUrl: '', freeText: '', sns: [],
+  showLogo: true,    // 陣営ロゴ（ASTRA/UMBRA）の表示ON/OFF
 }
 
 // カード寸法の基準（4:5 / Xタイムライン最適）
@@ -56,83 +63,72 @@ const CARD_SCALE = 2.5      // 出力 = 1080×1350
 const SS_HEIGHT = 180       // スクショエリア高さ（4:5・情報エリアにゆとり）
 
 
-const DARK_COLOR   = '#a8d8ea'
-const LIGHT_COLOR  = '#e87db0'
-const SIMPLE_COLOR = '#4aa8d8'
+// ─── 陣営カラー（CCチームカードの ASTRA / UMBRA を踏襲）──────────
+//   ASTRA = 白基調 × 青文字 / UMBRA = 黒基調 × 赤文字
+const ASTRA_COLOR = '#1c7fc4'   // accent（青）
+const UMBRA_COLOR = '#e0473d'   // accent（赤）
 
+// テーマキーは 'umbra'（ダーク相当）/ 'astra'（ライト相当）の2系統。
+//   ThemeToggle では UMBRA→ASTRA の順で並べる（ダーク/シンプルのボタン枠を踏襲）。
 const THEME = {
-  dark: {
-    cardBg: '#0d0d18', pageBg: '#070710',
-    label: 'rgba(255,255,255,0.35)', value: 'rgba(255,255,255,0.85)',
-    activeTag: DARK_COLOR, activeTagMainText: '#0a0a15',
-    inactiveTagBg: 'rgba(255,255,255,0.06)', inactiveTagBorder: 'rgba(255,255,255,0.15)',
-    inactiveTagText: 'rgba(255,255,255,0.45)',
-    border: 'rgba(255,255,255,0.1)', sectionBg: 'rgba(255,255,255,0.04)',
-    inputBg: 'rgba(255,255,255,0.07)', inputBorder: 'rgba(255,255,255,0.15)',
-    inputText: 'rgba(255,255,255,0.85)', buttonBg: DARK_COLOR, buttonText: '#0d1a20',
-    accentColor: DARK_COLOR,
-    rankBadgeBg: 'rgba(0,0,0,0.65)',
-    playerNameColor: '#ffffff',
-    noteBg: 'rgba(255,255,255,0.04)', noteBorder: 'rgba(255,255,255,0.1)',
-    selectBg: 'rgba(255,255,255,0.07)', selectBorder: 'rgba(255,255,255,0.15)',
-    selectText: 'rgba(255,255,255,0.85)', selectHover: 'rgba(168,216,234,0.12)',
-    selectActive: 'rgba(168,216,234,0.2)', dropdownBg: '#181830',
-    dropdownBorder: 'rgba(168,216,234,0.25)', groupLabel: 'rgba(168,216,234,0.45)',
-    deleteBg: 'rgba(255,80,80,0.12)', deleteBorder: 'rgba(255,80,80,0.35)', deleteText: '#ff8888',
-    themeBtnActiveBg: 'rgba(255,255,255,0.15)', themeBtnInactiveBg: 'transparent',
-    themeBtnActiveText: '#ffffff', themeBtnInactiveText: 'rgba(255,255,255,0.4)',
-    themeBtnBorder: 'rgba(255,255,255,0.15)',
+  // ── UMBRA：黒基調 × 赤文字（旧 dark 相当）──
+  umbra: {
+    faction: 'UMBRA', factionJp: 'ウンブラ', light: false,
+    cardBg: '#160606', pageBg: '#0a0405',
+    label: 'rgba(255,120,110,0.42)', value: 'rgba(255,236,234,0.88)',
+    activeTag: UMBRA_COLOR, activeTagMainText: '#160606',
+    inactiveTagBg: 'rgba(255,255,255,0.05)', inactiveTagBorder: 'rgba(255,120,110,0.22)',
+    inactiveTagText: 'rgba(255,200,196,0.5)',
+    border: 'rgba(224,71,61,0.22)', sectionBg: 'rgba(224,71,61,0.06)',
+    inputBg: 'rgba(255,255,255,0.06)', inputBorder: 'rgba(224,71,61,0.28)',
+    inputText: 'rgba(255,236,234,0.9)', buttonBg: UMBRA_COLOR, buttonText: '#160606',
+    accentColor: UMBRA_COLOR,
+    rankBadgeBg: 'rgba(12,3,3,0.78)',
+    playerNameColor: '#fdf2f0',
+    noteBg: 'rgba(224,71,61,0.05)', noteBorder: 'rgba(224,71,61,0.2)',
+    selectBg: 'rgba(255,255,255,0.06)', selectBorder: 'rgba(224,71,61,0.28)',
+    selectText: 'rgba(255,236,234,0.88)', selectHover: 'rgba(224,71,61,0.14)',
+    selectActive: 'rgba(224,71,61,0.24)', dropdownBg: '#1c0808',
+    dropdownBorder: 'rgba(224,71,61,0.32)', groupLabel: 'rgba(255,120,110,0.55)',
+    deleteBg: 'rgba(255,80,80,0.14)', deleteBorder: 'rgba(255,80,80,0.4)', deleteText: '#ff9090',
+    themeBtnActiveBg: 'rgba(224,71,61,0.22)', themeBtnInactiveBg: 'transparent',
+    themeBtnActiveText: '#ff7a6e', themeBtnInactiveText: 'rgba(255,255,255,0.35)',
+    themeBtnBorder: 'rgba(224,71,61,0.28)',
+    // ヘッダーの陣営ロゴ表記用
+    logoColor: UMBRA_COLOR, headerSub: 'rgba(255,120,110,0.6)',
   },
-  light: {
-    cardBg: '#f2eeec', pageBg: '#e8e4e2',
-    label: '#aaa', value: '#2a2a3a',
-    activeTag: LIGHT_COLOR, activeTagMainText: '#ffffff',
-    inactiveTagBg: 'rgba(0,0,0,0.04)', inactiveTagBorder: 'rgba(0,0,0,0.12)',
-    inactiveTagText: 'rgba(0,0,0,0.38)',
-    border: 'rgba(0,0,0,0.1)', sectionBg: 'rgba(255,255,255,0.75)',
-    inputBg: 'rgba(255,255,255,0.9)', inputBorder: 'rgba(0,0,0,0.12)',
-    inputText: '#2a2a3a', buttonBg: LIGHT_COLOR, buttonText: '#ffffff',
-    accentColor: LIGHT_COLOR,
-    rankBadgeBg: 'rgba(255,255,255,0.92)',
-    playerNameColor: '#111122',
-    noteBg: 'rgba(255,255,255,0.85)', noteBorder: 'rgba(0,0,0,0.1)',
-    selectBg: 'rgba(255,255,255,0.9)', selectBorder: 'rgba(0,0,0,0.12)',
-    selectText: '#2a2a3a', selectHover: 'rgba(232,125,176,0.1)',
-    selectActive: 'rgba(232,125,176,0.18)', dropdownBg: '#fff8fb',
-    dropdownBorder: 'rgba(232,125,176,0.3)', groupLabel: 'rgba(200,100,150,0.55)',
+  // ── ASTRA：白基調 × 青文字（旧 simple / light 相当）──
+  astra: {
+    faction: 'ASTRA', factionJp: 'アストラ', light: true,
+    cardBg: '#f4f8fc', pageBg: '#e7eef5',
+    label: 'rgba(28,90,140,0.42)', value: '#103a5c',
+    activeTag: ASTRA_COLOR, activeTagMainText: '#ffffff',
+    inactiveTagBg: 'rgba(28,127,196,0.05)', inactiveTagBorder: 'rgba(28,127,196,0.2)',
+    inactiveTagText: 'rgba(28,90,140,0.42)',
+    border: 'rgba(28,127,196,0.22)', sectionBg: 'rgba(255,255,255,0.7)',
+    inputBg: 'rgba(255,255,255,0.92)', inputBorder: 'rgba(28,127,196,0.24)',
+    inputText: '#103a5c', buttonBg: ASTRA_COLOR, buttonText: '#ffffff',
+    accentColor: ASTRA_COLOR,
+    rankBadgeBg: 'rgba(255,255,255,0.94)',
+    playerNameColor: '#103a5c',
+    noteBg: 'rgba(255,255,255,0.85)', noteBorder: 'rgba(28,127,196,0.18)',
+    selectBg: 'rgba(255,255,255,0.92)', selectBorder: 'rgba(28,127,196,0.24)',
+    selectText: '#103a5c', selectHover: 'rgba(28,127,196,0.1)',
+    selectActive: 'rgba(28,127,196,0.18)', dropdownBg: '#f3f9fe',
+    dropdownBorder: 'rgba(28,127,196,0.3)', groupLabel: 'rgba(28,127,196,0.6)',
     deleteBg: 'rgba(220,50,50,0.07)', deleteBorder: 'rgba(220,50,50,0.25)', deleteText: '#cc4444',
-    themeBtnActiveBg: 'rgba(0,0,0,0.1)', themeBtnInactiveBg: 'transparent',
-    themeBtnActiveText: '#2a2a3a', themeBtnInactiveText: 'rgba(0,0,0,0.35)',
-    themeBtnBorder: 'rgba(0,0,0,0.12)',
-  },
-  simple: {
-    cardBg: '#eceff2', pageBg: '#e1e6ea',
-    label: '#9aa4ac', value: '#22323e',
-    activeTag: SIMPLE_COLOR, activeTagMainText: '#ffffff',
-    inactiveTagBg: 'rgba(0,0,0,0.04)', inactiveTagBorder: 'rgba(0,0,0,0.12)',
-    inactiveTagText: 'rgba(0,0,0,0.38)',
-    border: 'rgba(0,0,0,0.1)', sectionBg: 'rgba(255,255,255,0.78)',
-    inputBg: 'rgba(255,255,255,0.92)', inputBorder: 'rgba(0,0,0,0.12)',
-    inputText: '#22323e', buttonBg: SIMPLE_COLOR, buttonText: '#ffffff',
-    accentColor: SIMPLE_COLOR,
-    rankBadgeBg: 'rgba(255,255,255,0.92)',
-    playerNameColor: '#112028',
-    noteBg: 'rgba(255,255,255,0.85)', noteBorder: 'rgba(0,0,0,0.1)',
-    selectBg: 'rgba(255,255,255,0.92)', selectBorder: 'rgba(0,0,0,0.12)',
-    selectText: '#22323e', selectHover: 'rgba(74,168,216,0.1)',
-    selectActive: 'rgba(74,168,216,0.18)', dropdownBg: '#f3fafe',
-    dropdownBorder: 'rgba(74,168,216,0.3)', groupLabel: 'rgba(50,130,180,0.6)',
-    deleteBg: 'rgba(220,50,50,0.07)', deleteBorder: 'rgba(220,50,50,0.25)', deleteText: '#cc4444',
-    themeBtnActiveBg: 'rgba(0,0,0,0.1)', themeBtnInactiveBg: 'transparent',
-    themeBtnActiveText: '#22323e', themeBtnInactiveText: 'rgba(0,0,0,0.35)',
-    themeBtnBorder: 'rgba(0,0,0,0.12)',
+    themeBtnActiveBg: 'rgba(28,127,196,0.16)', themeBtnInactiveBg: 'transparent',
+    themeBtnActiveText: '#1c7fc4', themeBtnInactiveText: 'rgba(0,0,0,0.32)',
+    themeBtnBorder: 'rgba(28,127,196,0.24)',
+    logoColor: ASTRA_COLOR, headerSub: 'rgba(28,90,140,0.6)',
   },
 }
 
 const GlobalStyle = () => (
   <style>{`
+    @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&family=Saira+Condensed:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Rajdhani', 'Noto Sans JP', sans-serif; }
+    body { font-family: 'Oswald', 'Noto Sans JP', sans-serif; }
     @keyframes shimmer {
       0%   { background-position: -200% center; }
       100% { background-position:  200% center; }
@@ -161,16 +157,14 @@ function ThemeToggle({ theme, onToggle }) {
       border: `1px solid ${t.themeBtnBorder}`, borderRadius: '24px', padding: '3px', gap: '2px',
     }}>
       {[
-        { key: 'dark',   label: 'ダーク' },
-        { key: 'simple', label: 'シンプル' },
-        { key: 'light',  label: 'ライト' },
+        { key: 'umbra', label: 'UMBRA' },
+        { key: 'astra', label: 'ASTRA' },
       ].map(({ key, label }) => (
         <button key={key} onClick={() => onToggle(key)} style={{
-          padding: '5px 13px', borderRadius: '20px', border: 'none', cursor: 'pointer',
-          fontSize: '12px', fontFamily: "'Noto Sans JP',sans-serif", whiteSpace: 'nowrap',
+          padding: '5px 16px', borderRadius: '20px', border: 'none', cursor: 'pointer',
+          fontSize: '12px', fontFamily: "'Oswald',sans-serif", fontWeight: 600, letterSpacing: '0.08em', whiteSpace: 'nowrap',
           background: theme === key ? t.themeBtnActiveBg : t.themeBtnInactiveBg,
           color: theme === key ? t.themeBtnActiveText : t.themeBtnInactiveText,
-          fontWeight: theme === key ? 600 : 400,
           transition: 'all 0.2s ease',
         }}>{label}</button>
       ))}
@@ -226,7 +220,7 @@ function CustomSelect({ value, onChange, options, placeholder, theme }) {
         }}>
           {options.map((g, gi) => g.items ? (
             <div key={gi}>
-              <div style={{ padding: '5px 12px 2px', fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', color: t.groupLabel, textTransform: 'uppercase', fontFamily: "'Rajdhani',sans-serif", textAlign: 'left' }}>
+              <div style={{ padding: '5px 12px 2px', fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', color: t.groupLabel, textTransform: 'uppercase', fontFamily: "'Oswald',sans-serif", textAlign: 'left' }}>
                 {g.label}
               </div>
               {g.items.map((item, ii) => {
@@ -259,7 +253,7 @@ function SectionLabel({ children, theme }) {
     <div style={{
       fontSize: '11px', fontWeight: 600, letterSpacing: '0.15em',
       color: t.label, textTransform: 'uppercase', marginBottom: '8px',
-      textAlign: 'left', fontFamily: "'Barlow Condensed',sans-serif",
+      textAlign: 'left', fontFamily: "'Oswald',sans-serif",
     }}>{children}</div>
   )
 }
@@ -270,7 +264,7 @@ function PlayerCard({ player, theme, cardRef }) {
   const ac = t.accentColor
 
   const sectionLabel = {
-    fontFamily: "'Barlow Condensed',sans-serif", fontSize: '11px', fontWeight: 600,
+    fontFamily: "'Oswald',sans-serif", fontSize: '11px', fontWeight: 600,
     letterSpacing: '0.15em', color: t.label, textTransform: 'uppercase',
     marginBottom: '2px', textAlign: 'left',
   }
@@ -281,13 +275,13 @@ function PlayerCard({ player, theme, cardRef }) {
   }
   const activeTag   = { ...tagBase, background: ac + '22', borderColor: ac + '88', color: ac }
   const inactiveTag = { ...tagBase, background: t.inactiveTagBg, borderColor: t.inactiveTagBorder, color: t.inactiveTagText }
-  const mainTag     = { ...tagBase, background: ac + '55', borderColor: ac, color: theme === 'dark' ? '#fff' : ac, fontWeight: 700 }
+  const mainTag     = { ...tagBase, background: ac + '55', borderColor: ac, color: t.light ? ac : '#fff', fontWeight: 700 }
 
   return (
     <div ref={cardRef} style={{
       width: `${CARD_W}px`, height: `${CARD_H}px`, background: t.cardBg, position: 'relative',
       overflow: 'hidden', flexShrink: 0, animation: 'fadeUp 0.5s ease',
-      fontFamily: "'Barlow Condensed','Rajdhani','Noto Sans JP',sans-serif",
+      fontFamily: "'Oswald','Noto Sans JP',sans-serif",
     }}>
       <div style={{
         position: 'absolute', top: 0, left: 0, right: 0, height: '2px', zIndex: 10,
@@ -307,9 +301,19 @@ function PlayerCard({ player, theme, cardRef }) {
           position: 'absolute', bottom: 0, left: 0, right: 0, height: '100px', pointerEvents: 'none',
           background: `linear-gradient(to top, ${t.cardBg} 0%, ${t.cardBg}cc 30%, transparent 100%)`,
         }} />
+
+        {/* 上部ヘッダー：陣営ロゴ（左）のみ */}
+        {player.showLogo && (
+          <div style={{
+            position: 'absolute', top: '12px', left: '16px', pointerEvents: 'none',
+            fontSize: '20px', fontWeight: 700, letterSpacing: '0.04em',
+            color: t.logoColor, fontFamily: "'Oswald',sans-serif", opacity: 0.5, lineHeight: 1,
+          }}>{t.faction}</div>
+        )}
+
         <div style={{ position: 'absolute', bottom: '12px', left: '18px', right: '20px', textAlign: 'left' }}>
-          <div style={{ fontSize: '10px', letterSpacing: '0.2em', color: t.accentColor, fontWeight: 500, marginBottom: '1px', textTransform: 'uppercase', fontFamily: "'Barlow Condensed',sans-serif" }}>Crystal Conflict Player</div>
-          <div style={{ fontSize: '28px', fontWeight: 700, color: t.playerNameColor, lineHeight: 1.0, fontFamily: "'Barlow Condensed','Rajdhani',sans-serif", whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div style={{ fontSize: '10px', letterSpacing: '0.2em', color: t.accentColor, fontWeight: 500, marginBottom: '1px', textTransform: 'uppercase', fontFamily: "'Oswald',sans-serif" }}>Crystal Conflict Player</div>
+          <div style={{ fontSize: '28px', fontWeight: 700, color: t.playerNameColor, lineHeight: 1.0, fontFamily: "'Oswald',sans-serif", whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {player.firstName || 'First'} {player.lastName || 'Last'}
           </div>
           {player.nickname && <div style={{ fontSize: '13px', color: t.value, marginTop: '1px', fontFamily: "'Noto Sans JP',sans-serif", whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{player.nickname}</div>}
@@ -331,7 +335,7 @@ function PlayerCard({ player, theme, cardRef }) {
         <div style={{ background: t.sectionBg, border: `1px solid ${t.border}`, borderRadius: '8px', padding: '4px 10px', display: 'flex', alignItems: 'center', gap: '0' }}>
           {[{ label: 'SERVER', value: player.server || '—' }, { label: 'TEAM', value: player.team || '—' }].map(({ label, value }, i) => (
             <div key={label} style={{ flex: 1, borderLeft: i === 1 ? `1px solid ${t.border}` : 'none', paddingLeft: i === 1 ? '12px' : '0', marginLeft: i === 1 ? '12px' : '0', textAlign: 'left' }}>
-              <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.15em', color: t.label, textTransform: 'uppercase', fontFamily: "'Barlow Condensed',sans-serif", marginBottom: '1px' }}>{label}</div>
+              <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.15em', color: t.label, textTransform: 'uppercase', fontFamily: "'Oswald',sans-serif", marginBottom: '1px' }}>{label}</div>
               <div style={{ fontSize: '13px', fontWeight: 600, color: t.value, fontFamily: "'Noto Sans JP',sans-serif", lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</div>
             </div>
           ))}
@@ -450,6 +454,21 @@ function PlayerForm({ onSubmit, theme, onToggleTheme, initialData }) {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+          {/* 表示オプション：陣営ロゴ表示 */}
+          <div onClick={() => set('showLogo', !form.showLogo)} style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '11px 14px', borderRadius: '8px', cursor: 'pointer',
+            border: `1px solid ${form.showLogo ? t.accentColor : t.inputBorder}`,
+            background: form.showLogo ? t.accentColor + '15' : 'transparent', transition: 'all 0.15s ease',
+          }}>
+            <span style={{ fontFamily: "'Noto Sans JP',sans-serif", fontSize: '13px', color: t.value }}>
+              陣営ロゴを表示<span style={{ color: t.label, fontSize: '11px' }}>（{t.faction}）</span>
+            </span>
+            <span style={{ position: 'relative', width: '40px', height: '22px', borderRadius: '11px', background: form.showLogo ? t.accentColor : t.inputBorder, transition: 'background 0.15s ease', flexShrink: 0 }}>
+              <span style={{ position: 'absolute', top: '2px', left: form.showLogo ? '20px' : '2px', width: '18px', height: '18px', borderRadius: '50%', background: '#fff', transition: 'left 0.15s ease' }} />
+            </span>
+          </div>
 
           {/* 名前 */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
@@ -597,7 +616,7 @@ function PlayerForm({ onSubmit, theme, onToggleTheme, initialData }) {
             color: form.screenshotDataUrl ? t.buttonText : t.label,
             border: form.screenshotDataUrl ? 'none' : `1px solid ${t.inactiveTagBorder}`,
             borderRadius: '10px', fontSize: '16px', fontWeight: 700,
-            fontFamily: "'Rajdhani',sans-serif", letterSpacing: '0.08em',
+            fontFamily: "'Oswald',sans-serif", letterSpacing: '0.08em',
             cursor: form.screenshotDataUrl ? 'pointer' : 'not-allowed', marginTop: '4px',
           }}>カードを表示 →</button>
           {!form.screenshotDataUrl && (
@@ -620,12 +639,28 @@ function CardView({ player, theme, onEdit }) {
   const [generating, setGenerating] = useState(false)
   const [showSave, setShowSave] = useState(false)
   const [cardImgSrc, setCardImgSrc] = useState(null)
+  // プレビュー時、画面高さにカード全体が収まるよう縮小率を算出
+  const [previewScale, setPreviewScale] = useState(1)
+  useLayoutEffect(() => {
+    const calc = () => {
+      // 上下パディング(24+40)＋ボタン領域(約70)＋余白を確保した実効高さ
+      const reserve = 24 + 40 + 70 + 24
+      const avail = window.innerHeight - reserve
+      const s = Math.min(1, avail / CARD_H)
+      setPreviewScale(s > 0.3 ? s : 0.3)
+    }
+    calc()
+    window.addEventListener('resize', calc)
+    return () => window.removeEventListener('resize', calc)
+  }, [showSave])
 
   // X（旧Twitter）へのポスト：投稿文を入れた状態でintentを開く
   const handlePostToX = useCallback(() => {
     const name = ((player.firstName || '') + ' ' + (player.lastName || '')).trim()
-    const nameLine = name ? `${name}のCCキャラカードを作りました！\n` : 'CCキャラカードを作りました！\n'
-    const text = `${nameLine}\n#FF14 #CCキャラカード`
+    const nameLine = name ? `${name}の${SHARE_NOUN}を作りました！` : `${SHARE_NOUN}を作りました！`
+    const lines = [nameLine, '', SHARE_HASH]
+    if (SHARE_URL) lines.push(SHARE_URL)
+    const text = lines.join('\n')
     const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`
     window.open(url, '_blank', 'noopener,noreferrer')
   }, [player])
@@ -691,7 +726,7 @@ function CardView({ player, theme, onEdit }) {
           const tw = Math.max(ctx.measureText(label).width + hpad * 2, TAG_MINW)
           if (tx + tw > W - 16) { tx = 16; ty += TAG_PITCH }
           let bg, border, fg
-          if (type === 'main')     { bg = ac + '55'; border = ac; fg = theme === 'dark' ? '#ffffff' : ac }
+          if (type === 'main')     { bg = ac + '55'; border = ac; fg = t.light ? ac : '#ffffff' }
           else if (type === 'sub') { bg = ac + '22';       border = ac + '88'; fg = ac }
           else                     { bg = t.inactiveTagBg; border = t.inactiveTagBorder; fg = t.inactiveTagText }
           roundRect(tx, ty, tw, TAG_H, TAG_H / 2, bg, border)
@@ -732,18 +767,26 @@ function CardView({ player, theme, onEdit }) {
       fadeGrad.addColorStop(1, t.cardBg + '00')
       fillRect(0, SS_H - 100, W, 100, fadeGrad)
 
+      // ── 上部ヘッダー：陣営ロゴ（左）のみ ──
+      // ランク非表示(__none__)/未選択はバッジを出さない（ヘッダー判定より前に確定させる）
+      const rank = player.highestRank === '__none__' ? '' : player.highestRank
+      ctx.textBaseline = 'alphabetic'
+      if (player.showLogo) {
+        ctx.save(); ctx.globalAlpha = 0.5
+        txt(t.faction, 16, 30, '700 20px "Oswald"', t.logoColor, 'left')
+        ctx.restore()
+      }
+
       // プレイヤー名（DOM: bottom12px, left18px）
       ctx.textBaseline = 'alphabetic'
       const nameBottom = SS_H - 12
-      // 「ランク非表示」(__none__) や未選択はバッジを出さない
-      const rank = player.highestRank === '__none__' ? '' : player.highestRank
       // 名前・呼び方の右限界（ランクバッジがある場合はその左まで）
       const nameLeft = 18
       const nameRightLimit = rank ? W - 84 - 8 : W - 18
       const nameMaxW = nameRightLimit - nameLeft
-      txt('CRYSTAL CONFLICT PLAYER', nameLeft, nameBottom - 30, '500 10px "Barlow Condensed"', ac)
+      txt('CRYSTAL CONFLICT PLAYER', nameLeft, nameBottom - 30, '500 10px "Oswald"', ac)
       const fullName = ((player.firstName || 'First') + ' ' + (player.lastName || 'Last')).trim()
-      txt(fullName, nameLeft, nameBottom, '700 28px "Barlow Condensed"', t.playerNameColor, 'left', 'alphabetic', nameMaxW)
+      txt(fullName, nameLeft, nameBottom, '700 28px "Oswald"', t.playerNameColor, 'left', 'alphabetic', nameMaxW)
       if (player.nickname) txt(player.nickname, nameLeft, nameBottom + 14, '13px "Noto Sans JP"', t.value, 'left', 'alphabetic', nameMaxW)
 
       // ランクバッジ（DOM: top14, right14, padding 6px10px, minWidth56）
@@ -847,18 +890,18 @@ function CardView({ player, theme, onEdit }) {
       }
       const drawSectionLabel = (label) => {
         ctx.textBaseline = 'alphabetic'
-        txt(label, 16, cy + 10, '600 11px "Barlow Condensed"', t.label)
+        txt(label, 16, cy + 10, '600 11px "Oswald"', t.label)
         cy += LABEL_H
       }
 
       // ① SERVER / TEAM
       roundRect(16, cy, W - 32, stH, 8, t.sectionBg, t.border)
       ctx.textBaseline = 'alphabetic'
-      txt('SERVER', 26, cy + 14, '700 9px "Barlow Condensed"', t.label)
+      txt('SERVER', 26, cy + 14, '700 9px "Oswald"', t.label)
       fitValue(player.server || '—', 26, cy + 31)
       ctx.strokeStyle = t.border; ctx.lineWidth = 1
       ctx.beginPath(); ctx.moveTo(W / 2, cy + 8); ctx.lineTo(W / 2, cy + stH - 8); ctx.stroke()
-      txt('TEAM', W / 2 + 12, cy + 14, '700 9px "Barlow Condensed"', t.label)
+      txt('TEAM', W / 2 + 12, cy + 14, '700 9px "Oswald"', t.label)
       fitValue(player.team || '—', W / 2 + 12, cy + 31)
       cy += stH + gap
 
@@ -896,9 +939,9 @@ function CardView({ player, theme, onEdit }) {
       ctx.strokeStyle = t.border; ctx.lineWidth = 1; ctx.textBaseline = 'alphabetic'
       ctx.beginPath(); ctx.moveTo(16, cy); ctx.lineTo(W - 16, cy); ctx.stroke()
       cy += 6
-      txt('CC PLAYER CARD', 16, cy + 11, '700 11px "Barlow Condensed"', ac)
-      txt('FINAL FANTASY XIV', 16, cy + 23, '9px "Barlow Condensed"', t.label)
-      txt('© SQUARE ENIX', 16, cy + 34, '9px "Barlow Condensed"', t.label)
+      txt('CC PLAYER CARD', 16, cy + 11, '700 11px "Oswald"', ac)
+      txt('FINAL FANTASY XIV', 16, cy + 23, '9px "Oswald"', t.label)
+      txt('© SQUARE ENIX', 16, cy + 34, '9px "Oswald"', t.label)
 
       const dataUrl = cv.toDataURL('image/png')
       setCardImgSrc(dataUrl)
@@ -992,17 +1035,24 @@ function CardView({ player, theme, onEdit }) {
       {/* プレビュー：生成完了前のみ表示 */}
       {!showSave && (
         <>
-          <PlayerCard player={player} theme={theme} cardRef={cardRef} />
+          <div style={{
+            width: CARD_W * previewScale, height: CARD_H * previewScale,
+            overflow: 'hidden', flexShrink: 0,
+          }}>
+            <div style={{ transform: `scale(${previewScale})`, transformOrigin: 'top left' }}>
+              <PlayerCard player={player} theme={theme} cardRef={cardRef} />
+            </div>
+          </div>
           <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
             <button onClick={onEdit} style={{
               padding: '10px 20px', background: t.inactiveTagBg, border: `1px solid ${t.inactiveTagBorder}`,
               borderRadius: '8px', color: t.value, fontSize: '14px', fontWeight: 600,
-              cursor: 'pointer', fontFamily: "'Rajdhani',sans-serif",
+              cursor: 'pointer', fontFamily: "'Oswald',sans-serif",
             }}>← 編集に戻る</button>
             <button onClick={handleRenderCard} disabled={generating} style={{
               padding: '10px 20px', background: t.buttonBg, border: 'none', borderRadius: '8px',
               color: t.buttonText, fontSize: '14px', fontWeight: 700,
-              cursor: generating ? 'wait' : 'pointer', fontFamily: "'Rajdhani',sans-serif",
+              cursor: generating ? 'wait' : 'pointer', fontFamily: "'Oswald',sans-serif",
               opacity: generating ? 0.7 : 1,
             }}>{generating ? '⏳ 生成中...' : '🖼️ カードを生成'}</button>
           </div>
@@ -1025,7 +1075,7 @@ function CardView({ player, theme, onEdit }) {
 export default function App() {
   const [view, setView]     = useState('form')
   const [player, setPlayer] = useState(emptyPlayer)
-  const [theme, setTheme]   = useState('dark')
+  const [theme, setTheme]   = useState('umbra')
   return (
     <>
       <GlobalStyle />
