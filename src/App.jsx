@@ -158,8 +158,8 @@ function ThemeToggle({ theme, onToggle }) {
       border: `1px solid ${t.themeBtnBorder}`, borderRadius: '24px', padding: '3px', gap: '2px',
     }}>
       {[
-        { key: 'umbra', label: 'UMBRA' },
         { key: 'astra', label: 'ASTRA' },
+        { key: 'umbra', label: 'UMBRA' },
       ].map(({ key, label }) => (
         <button key={key} onClick={() => onToggle(key)} style={{
           padding: '5px 16px', borderRadius: '20px', border: 'none', cursor: 'pointer',
@@ -1076,7 +1076,7 @@ function CardView({ player, theme, onEdit }) {
 export default function App() {
   const [view, setView]     = useState('form')
   const [player, setPlayer] = useState(emptyPlayer)
-  const [theme, setTheme]   = useState('umbra')
+  const [theme, setTheme]   = useState('astra')
   return (
     <>
       <GlobalStyle />
